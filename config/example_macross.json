@@ -1,0 +1,52 @@
+{
+    "user": "example",
+    "portfolio": "MACross_NAS100",
+    "initialCash": 500,
+    "startDate": "2025-01-02 00:00",
+    "endDate": "2025-10-15 12:00",
+    "backtestSetting": {
+        "dynamic_weight": "False",
+        "shared_principal": "False",
+        "delay": 0,
+        "limit_position_size_type": "equity",
+        "slippage_pct": 0.0001,
+        "commission_pct": 0.0001
+    },
+    "strategyInfo": [
+        {
+            "strategy": "MACross",
+            "Tickers": "NAS100",
+            "timeframe": "H1",
+            "leverage": 20.0,
+            "max_DirectionsPosition": [1, 1],
+            "weight": 1,
+            "id": "1",
+
+            "_comment_entry_quality": "Phase 1: Entry filters",
+            "ma_type": "ema",
+            "short_ma": 9,
+            "long_ma": 26,
+            "eff_threshold": 0.0004,
+            "unstable_window": 50,
+            "slope_confirm_bars": 2,
+            "extreme_range_window": 200,
+            "extreme_range_pct": 95.0,
+            "extreme_range_lookback": 3,
+
+            "_comment_adaptive_exits": "Phase 2: ATR-based exit management",
+            "atr_period": 14,
+            "initial_sl_atr": 3.0,
+            "trail_activation_atr": 1.5,
+            "trail_distance_atr": 2.0,
+            "tp_atr": null,
+            "max_holding_bars": null,
+
+            "_comment_session_filters": "Phase 3: Optional session & volatility filters (null = disabled)",
+            "trade_start_hour": null,
+            "trade_end_hour": null,
+            "min_atr_pct": null,
+
+            "data_source": "FXCM"
+        }
+    ]
+}
