@@ -157,8 +157,7 @@ backtesting-engine/
 │   ├── base.py                 StrategyBase with shared data pipeline
 │   ├── tools.py                Helper functions (find_first_, backtest_prepare)
 │   └── examples/
-│       ├── ma_cross.py         Moving Average Crossover with adaptive exits
-│       └── directional_change.py   Directional Change trend detection
+│       └── ma_cross.py         Moving Average Crossover with adaptive exits
 │
 ├── plotting/                   Visualization
 │   └── charts.py               Monthly PnL bars, equity curves, event windows
@@ -180,7 +179,7 @@ backtesting-engine/
 └── plots/                      Generated charts (gitignored)
 ```
 
-## Included Strategies
+## Included Strategy Example
 
 ### MACross — Moving Average Crossover
 
@@ -190,9 +189,7 @@ Entry on MA crossover with three phases of filters:
 2. **Adaptive exits** — ATR-based initial stop loss, trailing stop with activation threshold, ATR take-profit, max holding time
 3. **Session filters** — optional time-of-day and minimum ATR regime filters
 
-### Directional_Change2 — Directional Change
-
-Identifies trend reversals using the Directional Change framework. Entry when cumulative price change from a reference point exceeds a fixed threshold. Exit on theta take-profit, time-based (2t) exit, or DC-based stop loss reversal.
+New strategies can be added by inheriting from `StrategyBase` and implementing `prepare_backtest_data()` and `update_signal()`.
 
 ## Temp Matrices Design
 

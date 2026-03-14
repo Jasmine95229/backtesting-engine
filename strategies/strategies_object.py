@@ -5,4 +5,3 @@ Import all available strategies here so they're discoverable.
 """
 
 from strategies.examples.ma_cross import MACross
-from strategies.examples.directional_change import Directional_Change2
