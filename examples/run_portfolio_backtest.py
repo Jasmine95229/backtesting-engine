@@ -1,12 +1,31 @@
-"""Example: Run a MACross backtest on NAS100 M5 data.
+"""Portfolio backtest example — 3 heterogeneous strategies, shared capital.
 
-Usage:
-    cd backtesting-engine
-    python examples/run_backtest.py
+This example demonstrates the core architectural feature of this engine:
+running strategies with completely different logic (trend-following, momentum
+breakout, mean reversion) concurrently via shared-memory multiprocessing,
+without duplicating price data across processes.
 
-Prerequisites:
-    - Price data CSV in DB/FXCM/M5/NAS100.csv
-      (see README.md for CSV format)
+Strategies
+----------
+A. MACross       — EMA crossover on NAS100 M5  (trend-following)
+B. ATRBreakout   — Price breakout on EURUSD H1  (momentum)
+C. RSIMeanReversion — RSI + Bollinger Band on EURUSD M5  (counter-trend)
+
+All three run in parallel via ProcessPoolExecutor, reading from a shared
+memory buffer. Capital is pooled (shared_principal = True), allocated by
+weight per strategy.
+
+Usage
+-----
+    python examples/run_portfolio_backtest.py
+
+Data required
+-------------
+    DB/FXCM/M5/NAS100.csv
+    DB/FXCM/H1/EURUSD.csv
+    DB/FXCM/M5/EURUSD.csv
+
+    Format: Date,BidOpen,BidHigh,BidLow,BidClose,AskOpen,AskHigh,AskLow,AskClose,Volume,Timestamp
 """
 
 import sys
@@ -23,7 +42,7 @@ from plotting.charts import bar_monthly, plot_cumulative_percentage_change
 
 
 def main():
-    config_path = 'config/example_macross.json'
+    config_path = 'config/example_portfolio.json'
     step_times = {}
     total_start = time.perf_counter()
 
@@ -71,21 +90,21 @@ def main():
 
     # --- 5. Save results ---
     t0 = time.perf_counter()
-    save_file(results, 'MACross_example', 'output')
+    save_file(results, 'Portfolio_example', 'output')
     step_times['5. Save results'] = time.perf_counter() - t0
-    print(f"\nResults saved to output/MACross_example/")
+    print(f"\nResults saved to output/Portfolio_example/")
 
     # --- 6. Plot ---
     t0 = time.perf_counter()
     bar_monthly(results['port_trade_log'],
-                fig_name="MACross_NAS100_M5",
+                fig_name="Portfolio_example",
                 save_plot=True, save_dir='plots')
 
     plot_cumulative_percentage_change(
         dataframes=[port],
         column_names=['Equity'],
         title="Portfolio Equity Curve",
-        save_path='plots/MACross_NAS100_M5_equity.png')
+        save_path='plots/Portfolio_equity.png')
     step_times['6. Plot'] = time.perf_counter() - t0
 
     print("Plots saved to plots/")
@@ -101,5 +120,5 @@ def main():
     print("=" * 60)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

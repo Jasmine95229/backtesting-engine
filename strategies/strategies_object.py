@@ -5,3 +5,5 @@ Import all available strategies here so they're discoverable.
 """
 
 from strategies.examples.ma_cross import MACross
+from strategies.examples.atr_breakout import ATRBreakout
+from strategies.examples.rsi_mean_reversion import RSIMeanReversion

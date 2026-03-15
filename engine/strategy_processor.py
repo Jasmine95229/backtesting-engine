@@ -63,16 +63,17 @@ class StrategyProcessor:
 
     def _process_timestamp(self, timestamp):
         self.context.current_idx = self.context.timestamp_index[timestamp]
+        bar_idx = self.context.current_idx
 
         # Check if this timestamp is ffilled from unified timeline reindexing
-        signal_data = self.context.strategy_obj.signal_data
-        is_filled = '_is_filled' in signal_data.columns and signal_data.loc[timestamp, '_is_filled']
+        obj = self.context.strategy_obj
+        is_filled = '_is_filled' in obj.signal_index and obj.signal_array[bar_idx, obj.signal_index['_is_filled']]
 
         if is_filled:
-            self._passthrough_filled_prices(timestamp)
+            self._passthrough_filled_prices(bar_idx)
         else:
-            self.context.strategy_obj.update_signal(
-                timestamp, self.context.temp_dict, self.context.temp_dict.close_all)
+            obj.update_signal(
+                bar_idx, self.context.temp_dict, self.context.temp_dict.close_all)
             self._suppress_untradable_entries(timestamp)
 
         if self.signal_delay > 0:
@@ -97,27 +98,30 @@ class StrategyProcessor:
         self._strat_update(deposit)
         self._portfolio_update()
 
-    def _passthrough_filled_prices(self, timestamp):
+    def _passthrough_filled_prices(self, bar_idx):
         """On ffilled bars, only update current prices for open position PnL tracking.
         No signal logic runs - entry/exit signals stay False from cleanup."""
-        signal_data = self.context.strategy_obj.signal_data
+        obj = self.context.strategy_obj
+        signal_array = obj.signal_array
+        signal_index = obj.signal_index
         temp_ = self.context.temp_dict
-        for d in self.context.strategy_obj.position_directions:
+        for d in obj.position_directions:
             d_idx = temp_.direction_index[d]
-            temp_.current_price[:, d_idx] = signal_data.loc[timestamp, f'{d}_current_price']
-            temp_.entry_price[:, d_idx] = signal_data.loc[timestamp, f'{d}_entry_price']
-            temp_.exit_price[:, d_idx] = signal_data.loc[timestamp, f'{d}_exit_price']
+            temp_.current_price[:, d_idx] = signal_array[bar_idx, signal_index[f'{d}_current_price']]
+            temp_.entry_price[:, d_idx] = signal_array[bar_idx, signal_index[f'{d}_entry_price']]
+            temp_.exit_price[:, d_idx] = signal_array[bar_idx, signal_index[f'{d}_exit_price']]
 
     def _suppress_untradable_entries(self, timestamp):
         """Suppress entry signals on non-tradable bars (ffilled=2, market open false=3, stats prepare=4)."""
-        backtest_data = self.context.strategy_obj.backtest_data
-        if timestamp not in backtest_data.index:
+        obj = self.context.strategy_obj
+        if timestamp not in obj.backtest_row_index:
             return
+        row_idx = obj.backtest_row_index[timestamp]
         temp_ = self.context.temp_dict
-        for d in self.context.strategy_obj.position_directions:
+        for d in obj.position_directions:
             tradable_col = f'{d}_tradable'
-            if tradable_col in backtest_data.columns:
-                tradable_val = backtest_data.loc[timestamp, tradable_col]
+            if tradable_col in obj.backtest_col_index:
+                tradable_val = obj.backtest_array[row_idx, obj.backtest_col_index[tradable_col]]
                 if tradable_val != 1:
                     d_idx = temp_.direction_index[d]
                     temp_.entry_signal[:, d_idx] = False

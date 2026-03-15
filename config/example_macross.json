@@ -16,7 +16,7 @@
         {
             "strategy": "MACross",
             "Tickers": "NAS100",
-            "timeframe": "H1",
+            "timeframe": "M5",
             "leverage": 20.0,
             "max_DirectionsPosition": [1, 1],
             "weight": 1,

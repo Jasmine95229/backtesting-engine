@@ -222,14 +222,16 @@ class MACross:
         def __init__(self, init_cash, n_periods, position_directions):
             super().__init__(init_cash, n_periods, position_directions)
 
-    def update_signal(self, time, temp_, close_all=True):
+    def update_signal(self, bar_idx, temp_, close_all=True):
         """Per-bar signal update: manage entries, adaptive exits, and price passthrough."""
+        sig = self.signal_array
+        si = self.signal_index
 
         for d_num in temp_.direction_index.keys():
             d_n = temp_.direction_index[d_num]
 
             # --- Entry ---
-            if self.signal_data.loc[time, f'{d_num}_entry_signal']:
+            if sig[bar_idx, si[f'{d_num}_entry_signal']]:
                 entry_id = find_first_(temp_.open_position[:, d_n], False)
                 if entry_id != 'failed':
                     temp_.entry_signal[entry_id, d_n] = True
@@ -238,8 +240,8 @@ class MACross:
                     temp_.trail_active[entry_id, d_n] = False
                     temp_.tp_exit_price[entry_id, d_n] = 0
                     if self.initial_sl_atr is not None:
-                        atr = self.signal_data.loc[time, 'ATR']
-                        entry_px = self.signal_data.loc[time, f'{d_num}_entry_price']
+                        atr = sig[bar_idx, si['ATR']]
+                        entry_px = sig[bar_idx, si[f'{d_num}_entry_price']]
                         if d_num == 'Long':
                             temp_.sl_price[entry_id, d_n] = entry_px - self.initial_sl_atr * atr
                         else:
@@ -250,8 +252,8 @@ class MACross:
             # --- Adaptive exits for open positions ---
             open_ids = find_all_(temp_.open_position[:, d_n], True)
             if open_ids != 'failed':
-                atr = self.signal_data.loc[time, 'ATR']
-                current_price = self.signal_data.loc[time, f'{d_num}_current_price']
+                atr = sig[bar_idx, si['ATR']]
+                current_price = sig[bar_idx, si[f'{d_num}_current_price']]
 
                 if d_num == 'Long':
                     temp_.highest_favorable_price[open_ids, d_n] = np.maximum(
@@ -259,7 +261,7 @@ class MACross:
                     profit = temp_.highest_favorable_price[open_ids, d_n] - temp_.trade_entry_price[open_ids, d_n]
                     trail_stop = temp_.highest_favorable_price[open_ids, d_n] - self.trail_distance_atr * atr
                     sl_hit = (temp_.sl_price[open_ids, d_n] > 0) & (
-                        temp_.sl_price[open_ids, d_n] >= self.signal_data.loc[time, f'{d_num}_exit_price'])
+                        temp_.sl_price[open_ids, d_n] >= sig[bar_idx, si[f'{d_num}_exit_price']])
                 else:
                     temp_.highest_favorable_price[open_ids, d_n] = np.where(
                         temp_.highest_favorable_price[open_ids, d_n] == 0, current_price,
@@ -267,7 +269,7 @@ class MACross:
                     profit = temp_.trade_entry_price[open_ids, d_n] - temp_.highest_favorable_price[open_ids, d_n]
                     trail_stop = temp_.highest_favorable_price[open_ids, d_n] + self.trail_distance_atr * atr
                     sl_hit = (temp_.sl_price[open_ids, d_n] > 0) & (
-                        temp_.sl_price[open_ids, d_n] <= self.signal_data.loc[time, f'{d_num}_exit_price'])
+                        temp_.sl_price[open_ids, d_n] <= sig[bar_idx, si[f'{d_num}_exit_price']])
 
                 # Trail activation
                 newly_active = profit >= self.trail_activation_atr * atr
@@ -291,10 +293,10 @@ class MACross:
                 if self.tp_atr is not None:
                     if d_num == 'Long':
                         tp_price = temp_.trade_entry_price[open_ids, d_n] + self.tp_atr * atr
-                        tp_hit = self.signal_data.loc[time, 'Long_BidHigh'] >= tp_price
+                        tp_hit = sig[bar_idx, si['Long_BidHigh']] >= tp_price
                     else:
                         tp_price = temp_.trade_entry_price[open_ids, d_n] - self.tp_atr * atr
-                        tp_hit = self.signal_data.loc[time, 'Short_AskLow'] <= tp_price
+                        tp_hit = sig[bar_idx, si['Short_AskLow']] <= tp_price
                     tp_trigger = tp_hit & (temp_.exit_type[open_ids, d_n] == 0)
                     temp_.tp_exit_price[open_ids, d_n] = np.where(tp_trigger, tp_price, temp_.tp_exit_price[open_ids, d_n])
                     temp_.exit_type[open_ids, d_n] = np.where(tp_trigger, 1, temp_.exit_type[open_ids, d_n])
@@ -306,7 +308,7 @@ class MACross:
                         held_too_long & (temp_.exit_type[open_ids, d_n] == 0), -2, temp_.exit_type[open_ids, d_n])
 
             # --- Signal-based exits ---
-            if self.signal_data.loc[time, f'{d_num}_exit_signal']:
+            if sig[bar_idx, si[f'{d_num}_exit_signal']]:
                 if close_all:
                     exit_ids = find_all_(temp_.open_position[:, d_n], True)
                 else:
@@ -332,14 +334,14 @@ class MACross:
                     temp_.past_trade[:, d_n]))
 
             # --- Set prices ---
-            temp_.current_price[:, d_n] = self.signal_data.loc[time, f'{d_num}_current_price']
-            temp_.entry_price[:, d_n] = self.signal_data.loc[time, f'{d_num}_entry_price']
+            temp_.current_price[:, d_n] = sig[bar_idx, si[f'{d_num}_current_price']]
+            temp_.entry_price[:, d_n] = sig[bar_idx, si[f'{d_num}_entry_price']]
             temp_.exit_price[:, d_n] = np.where(
                 temp_.exit_type[:, d_n] == -1, temp_.sl_price[:, d_n],
                 np.where(temp_.exit_type[:, d_n] == 1, temp_.tp_exit_price[:, d_n],
                 np.where(temp_.exit_type[:, d_n] == -2,
-                         self.signal_data.loc[time, f'{d_num}_current_price'],
-                         self.signal_data.loc[time, f'{d_num}_exit_price'])))
-            temp_.leverage[:, d_n] = self.signal_data.loc[time, 'Leverage']
+                         sig[bar_idx, si[f'{d_num}_current_price']],
+                         sig[bar_idx, si[f'{d_num}_exit_price']])))
+            temp_.leverage[:, d_n] = sig[bar_idx, si['Leverage']]
 
         return 'continue backtest'

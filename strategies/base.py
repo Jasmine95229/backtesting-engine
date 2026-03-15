@@ -60,3 +60,16 @@ class StrategyBase:
         hist_prices = stats_hist_prices(hist_prices, dates[0], dates[1], max_stats)
 
         self.histPrices = hist_prices
+
+    def _build_signal_arrays(self):
+        """Convert signal_data DataFrame to numpy arrays for fast bar-by-bar access.
+
+        Replaces slow pandas .loc[time, col] lookups with O(1) numpy indexing.
+        Must be called after signal_data is finalized (including unified timeline reindexing).
+        """
+        self.signal_array = self.signal_data.to_numpy()
+        self.signal_index = {col: i for i, col in enumerate(self.signal_data.columns)}
+
+        self.backtest_array = self.backtest_data.to_numpy()
+        self.backtest_col_index = {col: i for i, col in enumerate(self.backtest_data.columns)}
+        self.backtest_row_index = {ts: i for i, ts in enumerate(self.backtest_data.index)}

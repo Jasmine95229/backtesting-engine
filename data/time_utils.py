@@ -10,7 +10,7 @@ import pandas as pd
 TRADING_HOURS = {
     'type_1': [
         'BTCUSD', 'ETHUSD', 'LTCUSD', 'DOGEUSD', 'XLMUSD', 'SOLUSD',
-        'EOSUSD', 'AVAXUSD', 'POLUSD', 'LINKUSD', 'XTZUSD', 'KSMUSD', 'GBPUSD'
+        'EOSUSD', 'AVAXUSD', 'POLUSD', 'LINKUSD', 'XTZUSD', 'KSMUSD', 'GBPUSD', 'EURUSD'
     ],
     'type_2': [
         'NAS100', 'SPX500', 'XAUUSD', 'XAGUSD', 'VOLX', 'US30', 'GER30', 'USOilSpot'

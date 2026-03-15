@@ -250,6 +250,15 @@ class portfolioBacktester:
                 self.strat_dict[strat_id] = self.objs[strat_id].strat_record(
                     strat_init_cash, n_periods, instance_position_directions)
 
+        # Convert DataFrames to numpy arrays for fast bar-by-bar access
+        for strat_id in self.signals:
+            obj = self.objs[strat_id]
+            obj.signal_array = obj.signal_data.to_numpy()
+            obj.signal_index = {col: i for i, col in enumerate(obj.signal_data.columns)}
+            obj.backtest_array = obj.backtest_data.to_numpy()
+            obj.backtest_col_index = {col: i for i, col in enumerate(obj.backtest_data.columns)}
+            obj.backtest_row_index = {ts: i for i, ts in enumerate(obj.backtest_data.index)}
+
     def run_backtest(self):
         print('Starting backtest...')
 
@@ -278,7 +287,7 @@ class portfolioBacktester:
         task_memory_mgr = TaskMemoryManager()
         batch_manager = BatchCompletionManager(len(initial_tasks), batch_size=10)
         futures = {}
-        max_workers = min(3, len(initial_tasks))
+        max_workers = min(3, len(initial_tasks)) -1
 
         with ProcessPoolExecutor(max_workers=max_workers, initializer=init_worker, initargs=(shared_mem,)) as executor:
             for _ in range(max_workers):
@@ -364,7 +373,7 @@ class portfolioBacktester:
             self.port_.used_margin = [sum([np.sum(df.loc[i, 'Used Margin']) for df in timestamp_dfs]) for i in self.portfolio_timestamp]
             self.port_.free_margin = [sum([np.sum(df.loc[i, 'Free Margin']) for df in timestamp_dfs]) for i in self.portfolio_timestamp]
 
-        self.port_.port_positions = [sum([np.sum(df.loc[i, 'Positions']) for df in timestamp_dfs]) for i in self.portfolio_timestamp]
+        self.port_.port_positions = [sum([np.sum(np.maximum(df.loc[i, 'Positions'], 0))for df in timestamp_dfs])for i in self.portfolio_timestamp]
         self.port_.port_unrealized_pnl = [sum([np.sum(df.loc[i, 'Unrealized PnL']) for df in timestamp_dfs]) for i in self.portfolio_timestamp]
         self.port_.port_realized_pnl = [sum([df.loc[i, 'Realized PnL'] for df in timestamp_dfs]) for i in self.portfolio_timestamp]
 
