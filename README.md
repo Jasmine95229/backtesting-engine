@@ -15,8 +15,6 @@ When data providers gap low-liquidity periods (weekends, holidays, thin sessions
 
 But nothing traded on that bar. The signal is noise injected directly into your backtest.
 
-**Backtrader, VectorBT, and LEAN have no mechanism to detect or suppress these bars.**
-
 This engine labels every bar with a tradability flag during preprocessing and skips signal logic on forward-filled bars entirely — before any indicator or entry logic runs.
 
 ### Problem 2 — Heterogeneous parallel execution
@@ -35,7 +33,7 @@ This engine allocates capital by weight per strategy in shared principal mode. E
 
 ### Design tradeoff
 
-This engine prioritises **correctness and expressiveness** over raw speed. Per-bar Python logic is slower than fully vectorized engines like VectorBT. The target use case is research workflows where strategy logic is complex, data quality matters, and you need confidence that your backtest results reflect what would actually happen — not artefacts introduced by data gaps or capital contention.
+This engine prioritises **correctness and expressiveness** over raw speed. The per-bar simulation loop is not optimised for maximum throughput — it is designed for research workflows where strategy logic is complex, data quality matters, and you need confidence that your backtest results reflect what would actually happen, not artefacts introduced by data gaps or capital contention.
 
 ---
 
@@ -102,6 +100,8 @@ bar_monthly(results['port_trade_log'], fig_name="MyBacktest", save_plot=True)
 The `examples/` directory contains two runnable scripts:
 - `run_backtest.py` — single MACross strategy on NAS100 M5
 - `run_portfolio_backtest.py` — three heterogeneous strategies (trend-following, momentum breakout, mean reversion) across two instruments, demonstrating shared memory parallel execution
+
+> **Note:** The example strategies use default parameters and are provided solely to demonstrate engine functionality — the data pipeline, parallel execution, position matrix, and trade log output. They are not tuned for performance and their backtest results should not be interpreted as an indication of strategy viability.
 
 ---
 
