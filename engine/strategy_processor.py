@@ -1,3 +1,4 @@
+import time
 import numpy as np
 from engine.position_manager import PositionManager, MarginCalculator
 
@@ -37,11 +38,12 @@ class StrategyProcessor:
     strategies sharing one capital pool) and signal delay.
     """
 
-    def __init__(self, task, memory_manager):
+    def __init__(self, task, memory_manager, pending_queue_size=None):
         self.context = BacktestContext(task)
         self.memory_manager = memory_manager
         self.position_manager = PositionManager()
         self.margin_calculator = MarginCalculator()
+        self.pending_queue_size = pending_queue_size
 
         self.signal_delay = self.context.delay
         if self.signal_delay > 0:
@@ -131,6 +133,16 @@ class StrategyProcessor:
             arrays = self.memory_manager.portfolio_arrays
             self.margin_calculator.update_portfolio_margins(arrays, self.context)
             retask = self.margin_calculator._create_retask(self.context, timestamp, arrays['port_begin_balance'])
+
+            # If retask needed but no other work in queue, spin-wait instead of
+            # expensive requeue (avoids cross-process pickle/unpickle round-trip).
+            # When queue has pending tasks, requeue normally so workers pick up other work.
+            if retask and self.pending_queue_size is not None and self.pending_queue_size.value == 0:
+                while retask:
+                    time.sleep(0.0001)
+                    self.margin_calculator.update_portfolio_margins(arrays, self.context)
+                    retask = self.margin_calculator._create_retask(self.context, timestamp, arrays['port_begin_balance'])
+
             return retask
         except Exception as e:
             print(f"Error _handle_shared_principal: {e}")

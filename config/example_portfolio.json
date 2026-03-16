@@ -2,11 +2,11 @@
   "user": "example_portfolio",
   "portfolio": "examples_of_3_stratgies",
   "initialCash": 10000,
-  "startDate": "2025-07-02 00:00",
+  "startDate": "2025-01-02 00:00",
   "endDate": "2025-10-15 12:00",
   "backtestSetting": {
       "dynamic_weight": "False",
-      "shared_principal": "True",
+      "shared_principal": "False",
       "delay": 0,
       "limit_position_size_type": "equity",
       "slippage_pct": 0.0001,

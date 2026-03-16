@@ -4,6 +4,7 @@ import json
 import os
 import gc
 import inspect
+from multiprocessing import Value
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 from functools import reduce
 
@@ -19,16 +20,18 @@ warnings.filterwarnings("ignore")
 
 # --- Module-level state for multiprocessing workers ---
 temp_port_record = None
+pending_queue_size = None
 
-def init_worker(shared_data):
-    global temp_port_record
+def init_worker(shared_data, queue_size_val):
+    global temp_port_record, pending_queue_size
     temp_port_record = shared_data
+    pending_queue_size = queue_size_val
 
 
 def process_strat_backtest(task, n_rows):
-    global temp_port_record
+    global temp_port_record, pending_queue_size
     memory_manager = SharedMemoryManager(temp_port_record, n_rows)
-    processor = StrategyProcessor(task, memory_manager)
+    processor = StrategyProcessor(task, memory_manager, pending_queue_size)
     result = processor.run_backtest()
     if result == 'requeue':
         return processor.context.requeue()
@@ -287,15 +290,20 @@ class portfolioBacktester:
         task_memory_mgr = TaskMemoryManager()
         batch_manager = BatchCompletionManager(len(initial_tasks), batch_size=10)
         futures = {}
-        max_workers = min(3, len(initial_tasks)) -1
+        max_workers = max(1, min(3, len(initial_tasks)))
 
-        with ProcessPoolExecutor(max_workers=max_workers, initializer=init_worker, initargs=(shared_mem,)) as executor:
+        # Shared counter so workers know if queue has pending work
+        queue_size_val = Value('i', task_queue.size())
+
+        with ProcessPoolExecutor(max_workers=max_workers, initializer=init_worker,
+                                 initargs=(shared_mem, queue_size_val)) as executor:
             for _ in range(max_workers):
                 task = task_queue.get_task()
                 if task:
                     future = executor.submit(process_strat_backtest, task, n_rows)
                     futures[future] = task
                     task_memory_mgr.register_task(future, task)
+            queue_size_val.value = task_queue.size()
 
             while futures:
                 for future in as_completed(futures):
@@ -323,6 +331,8 @@ class portfolioBacktester:
                             futures[new_future] = next_task
                             task_memory_mgr.register_task(new_future, next_task)
 
+                        queue_size_val.value = task_queue.size()
+
                     except Exception as e:
                         print(f'Error backtesting Strategy {strat_id}: {e}')
                         del task
@@ -331,6 +341,7 @@ class portfolioBacktester:
                             new_future = executor.submit(process_strat_backtest, next_task, n_rows)
                             futures[new_future] = next_task
                             task_memory_mgr.register_task(new_future, next_task)
+                        queue_size_val.value = task_queue.size()
 
         batch_manager.force_final_cleanup()
         print('Backtesting completed')
